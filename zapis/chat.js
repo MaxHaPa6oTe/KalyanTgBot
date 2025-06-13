@@ -1,4 +1,4 @@
-const { validateName } = require('./func/nameValidator');
+const { validateName, validatePhone  } = require('./func/nameValidator');
 const { monthsRu } = require('./func/const');
 const fs = require('fs');
 const path = require('path');
@@ -52,11 +52,29 @@ module.exports = function(bot, contextManager, calendarUtils, timeUtils) {
       contextManager.setUserContext(chatId, { 
         ...context, 
         clientName: name,
+        currentStep: 'awaiting_phone' // Переходим к запросу телефона
+      });
+      bot.sendMessage(chatId, '📱 Пожалуйста, введите ваш номер телефона для подтверждения брони:');
+    } 
+    // Обработка ввода телефона
+    else if (context?.currentStep === 'awaiting_phone') {
+      const phone = msg.text.trim();
+      const validation = validatePhone(phone); // Функция валидации телефона
+      
+      if (!validation.valid) {
+        bot.sendMessage(chatId, `Ошибка: ${validation.reason}. Введите телефон еще раз`);
+        return;
+      }
+      
+      contextManager.setUserContext(chatId, { 
+        ...context, 
+        phoneNumber: phone,
         currentStep: 'awaiting_date' 
       });
       calendarUtils.sendCalendar(bot, chatId);
     }
   });
+
 
   // Обработчик callback запросов
   bot.on('callback_query', async (callbackQuery) => {
@@ -71,20 +89,19 @@ module.exports = function(bot, contextManager, calendarUtils, timeUtils) {
           currentStep: 'awaiting_name'
         });
       }
-      else if (data.startsWith('date_')) {
-        const dateStr = data.slice(5);
-          const dateObj = new Date(dateStr);
-  dateObj.setDate(dateObj.getDate() + 1);
-  // Форматируем для базы (YYYY-MM-DD)
-  const dbDate = dateObj.toISOString().split('T')[0];
-
-        contextManager.setUserContext(chatId, { 
-          ...context, 
-          date: dbDate,
-          currentStep: 'awaiting_time' 
-        });
-        timeUtils.promptForTime(bot, chatId);
-      }
+      // В обработчике callback_query:
+else if (data.startsWith('date_')) {
+  const dateStr = data.slice(5); // Получаем дату в формате YYYY-MM-DD
+  
+  // Не нужно добавлять +1 день - используем дату как есть
+  contextManager.setUserContext(chatId, { 
+    ...context, 
+    date: dateStr, // Сохраняем дату в том же формате
+    currentStep: 'awaiting_time' 
+  });
+  
+  timeUtils.promptForTime(bot, chatId);
+}
       else if (data === 'change_date') {
         calendarUtils.sendCalendar(bot, chatId);
       }
@@ -131,50 +148,41 @@ module.exports = function(bot, contextManager, calendarUtils, timeUtils) {
         );
       }
       else if (data === 'confirm') {
-  const context = contextManager.getUserContext(chatId);
-  if (!context?.clientName || !context.date || !context.time || !context.guests) {
-    throw new Error('Не все данные заполнены');
-  }
+        const context = contextManager.getUserContext(chatId);
+        if (!context?.clientName || !context.date || !context.time || !context.guests || !context.phoneNumber) {
+          throw new Error('Не все данные заполнены');
+        }
 
-  const dateObj = new Date(context.date);
-  const guestsText = guestHandler.getGuestsText(context.guests);
-  
-  try {
-    // Преобразуем guests в число (например, '2' -> 2)
-    const guestsCount = parseInt(context.guests) || 2; // 2 по умолчанию
-    // Сохраняем в базу данных
-    const Reservation = require('../models/Reservation');
-    await Reservation.create({
-    ktoBron: context.clientName,
-    data: context.date,
-    time: context.time,
-    kolich: parseInt(context.guests) || 2,
-    chatId: chatId // Добавляем ID чата
-  });
+        const dateObj = new Date(context.date);
+        const guestsText = guestHandler.getGuestsText(context.guests);
+        
+        try {
+          const Reservation = require('../models/Reservation');
+          await Reservation.create({
+            ktoBron: context.clientName,
+            data: context.date,
+            time: context.time,
+            kolich: parseInt(context.guests) || 2,
+            chatId: chatId,
+            phoneNumber: context.phoneNumber // Добавляем номер телефона
+          });
 
-    await bot.sendMessage(
-      chatId,
-      '✅ Столик забронирован '
-    );
-    
-  } catch (dbError) {
-    console.error('Ошибка сохранения в БД:', dbError);
-    await bot.sendMessage(chatId, '⚠️ Ошибка при сохранении брони. Пожалуйста, попробуйте снова.');
-  } finally {
-    contextManager.clearUserContext(chatId);
-  }
-}
-      else if (data === 'cancel') {
-        contextManager.clearUserContext(chatId);
-        sendWelcomeImage(chatId);
+          await bot.sendMessage(
+            chatId,
+            `✅ Столик забронирован!\n\n` +
+            `Мы сохранили ваш номер телефона: ${context.phoneNumber}\n` +
+            `При необходимости мы свяжемся с вами для подтверждения.`
+          );
+          
+        } catch (dbError) {
+          console.error('Ошибка сохранения в БД:', dbError);
+          await bot.sendMessage(chatId, '⚠️ Ошибка при сохранении брони. Пожалуйста, попробуйте снова.');
+        } finally {
+          contextManager.clearUserContext(chatId);
+        }
       }
-      else if (data === 'change_data') {
-        contextManager.setUserContext(chatId, { 
-          ...context,
-          currentStep: 'awaiting_name' 
-        });
-        bot.sendMessage(chatId, 'Введите имя заново:');
-      }
+      
+      // ... (остальные обработчики)
     } catch (error) {
       console.error('Ошибка обработки:', error);
       bot.sendMessage(chatId, '⚠️ Произошла ошибка, попробуйте снова');

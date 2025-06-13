@@ -21,6 +21,10 @@ const Reservation = sequelize.define('Reservation', {
     chatId: {
         type: DataTypes.BIGINT,
         allowNull: false
+    },
+    phoneNumber: { 
+        type: DataTypes.STRING,
+        allowNull: true 
     }
 }, {
     tableName: 'Reservation',

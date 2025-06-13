@@ -3,6 +3,7 @@ const Reservation = require('./models/Reservation');
 const bot = require('./bot');
 const moment = require('moment');
 require('moment/locale/ru');
+require('dotenv').config();
 
 module.exports = (sequelize) => {
   return {
@@ -55,7 +56,7 @@ module.exports = (sequelize) => {
           try {
             const message = `🔔 Через 30 мин к вам придут посетители!\n\n` +
               `Столик забранировал ${reservation.ktoBron} на ${reservation.kolich} человек`
-              await bot.sendMessage(8033615971, message);
+              await bot.sendMessage(process.env.TG_ID, message);
             // console.log(`✉️ Напоминание отправлено для ${reservation.ktoBron} (${reservation.chatId})`);
           } catch (error) {
             console.error('❌ Ошибка отправки:', error.message);

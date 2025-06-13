@@ -11,7 +11,7 @@ module.exports = function(bot, contextManager, calendarUtils, timeUtils) {
       const imagePath = path.join(__dirname, './kalyan.jpg');
       if (fs.existsSync(imagePath)) {
         await bot.sendPhoto(chatId, fs.readFileSync(imagePath), {
-          caption: 'Приветствуем в нашей кальянной! 🍏💨 Хотите забронировать столи?',
+          caption: 'Приветствуем в нашей кальянной! 🍏💨 Хотите забронировать столик?',
           reply_markup: {
             inline_keyboard: [
               [{ text: 'Да', callback_data: 'make_reservation' }]

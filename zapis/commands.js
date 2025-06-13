@@ -95,13 +95,36 @@ const commands = {
   // Отмена бронирования
   cancelReservation: async (bot, chatId, reservationId, messageId) => {
     try {
+      // Сначала получаем полную информацию о брони
+      const reservation = await Reservation.findOne({
+        where: { id: reservationId, chatId }
+      });
+
+      if (!reservation) {
+        return await bot.sendMessage(chatId, '❌ Бронь не найдена или уже отменена.');
+      }
+
+      // Форматируем дату для сообщения
+      const date = new Date(reservation.data);
+      const formattedDate = format(date, 'd MMMM yyyy', { locale: ru });
+
+      // Удаляем бронь
       const deleted = await Reservation.destroy({
         where: { id: reservationId, chatId }
       });
 
       if (deleted) {
+        // Уведомляем пользователя
         await bot.deleteMessage(chatId, messageId);
         await bot.sendMessage(chatId, '✅ Бронь успешно отменена!');
+
+        // Отправляем уведомление админу
+        try {
+          const adminMessage = `❌ ${reservation.ktoBron} отменил бронь на ${reservation.kolich} человек ${formattedDate} в ${reservation.time.split(':').slice(0, 2).join(':')}`;
+          await bot.sendMessage(process.env.TG_ID, adminMessage, { parse_mode: 'HTML' });
+        } catch (adminError) {
+          console.error('Ошибка при отправке уведомления админу:', adminError);
+        }
       } else {
         await bot.sendMessage(chatId, '❌ Не удалось отменить бронь.');
       }

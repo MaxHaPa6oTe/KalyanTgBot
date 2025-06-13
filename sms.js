@@ -7,65 +7,57 @@ require('dotenv').config();
 
 module.exports = (sequelize) => {
   return {
-  startReminderService: async () => {
-    console.log('🔔 Сервис напоминаний запущен.');
-    
-    setInterval(async () => {
-      try {
-        const now = new Date();
-        // console.log(`⏱ Проверка напоминаний в ${now.toLocaleString()}`);
-        
-        // Напоминание за 1 час и 10 минут
-        const oneHourLater = new Date(now.getTime() + 30 * 60 * 1000);
-        // const tenMinutesLater = new Date(now.getTime() + 10 * 60 * 1000);
-
-        // Форматируем даты и времена
-        const currentDate = moment(now).format('YYYY-MM-DD');
-        const timePlus1Hour = moment(oneHourLater).format('HH:mm');
-        // const timePlus10Min = moment(tenMinutesLater).format('HH:mm');
-
-        // console.log('🔍 Ищем брони на:', {
-        //   date: currentDate,
-        //   times: [timePlus1Hour]
-        // });
-
-        // Правильный запрос для PostgreSQL
-        const reservations = await Reservation.findAll({
-          where: {
-            [Op.and]: [
-              sequelize.where(
-                sequelize.fn('date', sequelize.col('data')),
-                currentDate
-              ),
-              {
-                time: {
-                  [Op.or]: [
-                  
-                    timePlus1Hour
-                  ]
-                }
-              }
-            ]
-          }
-        });
-
-        // console.log(`📊 Найдено броней для напоминания: ${reservations.length}`);
-
-        // Отправка напоминаний
-        for (const reservation of reservations) {
-          try {
-            const message = `🔔 Через 30 мин к вам придут посетители!\n\n` +
-              `<b>Столик забранировал ${reservation.ktoBron} на ${reservation.kolich} человек,</b>\n` +
-              `номер для связи: ${reservation.phoneNumber}`
-              await bot.sendMessage(process.env.TG_ID, message);
-            // console.log(`✉️ Напоминание отправлено для ${reservation.ktoBron} (${reservation.chatId})`);
-          } catch (error) {
-            console.error('❌ Ошибка отправки:', error.message);
-          }
+    startReminderService: async () => {
+      console.log('🔔 Сервис напоминаний запущен.');
+      
+      // Отслеживание новых бронирований
+      Reservation.afterCreate(async (reservation) => {
+        try {
+          const message = `✅ Новая бронь на ${reservation.kolich} человек\n` +
+            `${moment(reservation.data).format('D MMMM YYYY')} в ${reservation.time.split(':').slice(0, 2).join(':')}\n`;
+          await bot.sendMessage(process.env.TG_ID, message);
+          // console.log(`Уведомление о новой брони отправлено админу`);
+        } catch (error) {
+          console.error('Ошибка при отправке уведомления о новой брони:', error);
         }
-      } catch (error) {
-        console.error('🔥 Ошибка в сервисе напоминаний:', error);
-      }
-    }, 1 * 60 * 1000); // Проверка каждые 2 минуты
-  }}
+      });
+
+      // Оригинальный код с напоминаниями
+      setInterval(async () => {
+        try {
+          const now = new Date();
+          const oneHourLater = new Date(now.getTime() + 30 * 60 * 1000);
+          const currentDate = moment(now).format('YYYY-MM-DD');
+          const timePlus1Hour = moment(oneHourLater).format('HH:mm');
+
+          const reservations = await Reservation.findAll({
+            where: {
+              [Op.and]: [
+                sequelize.where(
+                  sequelize.fn('date', sequelize.col('data')),
+                  currentDate
+                ),
+                {
+                  time: timePlus1Hour
+                }
+              ]
+            }
+          });
+
+          for (const reservation of reservations) {
+            try {
+              const message = `🔔 Через 30 мин к вам придут посетители!\n\n` +
+                `<b>Столик забранировал ${reservation.ktoBron} на ${reservation.kolich} человек,</b>\n` +
+                `номер для связи: ${reservation.phoneNumber}`;
+              await bot.sendMessage(process.env.ADMIN_CHAT_ID, message);
+            } catch (error) {
+              console.error('❌ Ошибка отправки:', error.message);
+            }
+          }
+        } catch (error) {
+          console.error('🔥 Ошибка в сервисе напоминаний:', error);
+        }
+      }, 1 * 60 * 1000);
+    }
+  };
 };

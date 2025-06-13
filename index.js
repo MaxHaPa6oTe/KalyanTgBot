@@ -55,10 +55,50 @@ async function init() {
       }
     });
 
-    // Обработчик callback запросов (для отмены брони)
+    // Обработчик callback запросов
     bot.on('callback_query', async (callbackQuery) => {
-  await commands.handleCallbacks(bot, callbackQuery);
-  });
+      const data = callbackQuery.data;
+      
+      // Обработка обновления списка броней
+      if (data === 'refresh_week') {
+        try {
+          await bot.answerCallbackQuery(callbackQuery.id, { text: 'Обновляем данные...' });
+          await adminCommands.showWeeklyReservations(
+            bot, 
+            callbackQuery.message.chat.id, 
+            callbackQuery.message.message_id
+          );
+        } catch (error) {
+          console.error('Ошибка при обновлении:', error);
+          await bot.answerCallbackQuery(callbackQuery.id, { text: '⚠️ Ошибка при обновлении' });
+        }
+        return;
+      }
+      
+      // Обработка изменения данных брони
+      if (data === 'change_data') {
+        try {
+          const chatId = callbackQuery.message.chat.id;
+          const context = cm.getUserContextSync(chatId);
+          
+          // Возвращаем пользователя к выбору даты
+          cm.setUserContext(chatId, {
+            ...context,
+            currentStep: 'awaiting_date'
+          });
+          
+          await bot.answerCallbackQuery(callbackQuery.id, { text: 'Изменяем данные брони...' });
+          cu.sendCalendar(bot, chatId);
+        } catch (error) {
+          console.error('Ошибка при изменении данных:', error);
+          await bot.answerCallbackQuery(callbackQuery.id, { text: '⚠️ Ошибка при изменении' });
+        }
+        return;
+      }
+      
+      // Обработка остальных callback-запросов
+      await commands.handleCallbacks(bot, callbackQuery);
+    });
 
     // Обработчик команды /my_bron
     bot.onText(/\/my_bron/, (msg) => {

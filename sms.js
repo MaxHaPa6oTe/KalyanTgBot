@@ -55,7 +55,8 @@ module.exports = (sequelize) => {
         for (const reservation of reservations) {
           try {
             const message = `🔔 Через 30 мин к вам придут посетители!\n\n` +
-              `Столик забранировал ${reservation.ktoBron} на ${reservation.kolich} человек`
+              `<b>Столик забранировал ${reservation.ktoBron} на ${reservation.kolich} человек,</b>\n` +
+              `номер для связи: ${reservation.phoneNumber}`
               await bot.sendMessage(process.env.TG_ID, message);
             // console.log(`✉️ Напоминание отправлено для ${reservation.ktoBron} (${reservation.chatId})`);
           } catch (error) {

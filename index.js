@@ -57,34 +57,8 @@ async function init() {
 
     // Обработчик callback запросов (для отмены брони)
     bot.on('callback_query', async (callbackQuery) => {
-      const chatId = callbackQuery.message.chat.id;
-      const messageId = callbackQuery.message.message_id;
-      const data = callbackQuery.data;
-
-      try {
-        if (data.startsWith('ask_cancel_')) {
-          const reservationId = data.split('_')[2];
-          await commands.askCancelConfirmation(bot, chatId, reservationId, messageId);
-        }
-        else if (data.startsWith('confirm_cancel_')) {
-          const reservationId = data.split('_')[2];
-          await commands.cancelReservation(bot, chatId, reservationId, messageId);
-        }
-        else if (data.startsWith('reject_cancel_')) {
-          await bot.deleteMessage(chatId, messageId);
-        }
-        else if (data === 'refresh_week' && chatId.toString() === process.env.TG_ID) {
-          await bot.deleteMessage(chatId, messageId);
-          await adminCommands.showWeeklyReservations(bot, chatId);
-        }
-
-      } catch (error) {
-        console.error('Ошибка обработки callback:', error);
-        await bot.sendMessage(chatId, '⚠️ Произошла ошибка. Попробуйте еще раз.');
-      } finally {
-        bot.answerCallbackQuery(callbackQuery.id);
-      }
-    });
+  await commands.handleCallbacks(bot, callbackQuery);
+  });
 
     // Обработчик команды /my_bron
     bot.onText(/\/my_bron/, (msg) => {

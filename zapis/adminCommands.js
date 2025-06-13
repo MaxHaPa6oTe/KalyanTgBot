@@ -1,20 +1,20 @@
 const { Reservation } = require('../models');
-const { format, startOfWeek, endOfWeek } = require('date-fns');
+const { format, addDays } = require('date-fns');
 const { ru } = require('date-fns/locale');
 const Sequelize = require('sequelize');
 
 module.exports = {
   showWeeklyReservations: async (bot, chatId) => {
     try {
-      const weekStart = startOfWeek(new Date(), { locale: ru });
-      const weekEnd = endOfWeek(new Date(), { locale: ru });
+      const today = new Date();
+      const sevenDaysLater = addDays(today, 7); // Получаем дату через 7 дней
 
       const reservations = await Reservation.findAll({
         where: {
           data: {
             [Sequelize.Op.between]: [
-              format(weekStart, 'yyyy-MM-dd'),
-              format(weekEnd, 'yyyy-MM-dd')
+              format(today, 'yyyy-MM-dd'),
+              format(sevenDaysLater, 'yyyy-MM-dd')
             ]
           }
         },
@@ -22,10 +22,10 @@ module.exports = {
       });
 
       if (reservations.length === 0) {
-        return await bot.sendMessage(chatId, 'На этой неделе броней нет.');
+        return await bot.sendMessage(chatId, 'На ближайшие 7 дней броней нет.');
       }
 
-      let message = '📅 Брони на текущую неделю:\n\n';
+      let message = '📅 Брони на ближайшие 7 дней:\n\n';
       let currentDate = null;
 
       reservations.forEach(res => {
@@ -37,8 +37,10 @@ module.exports = {
           currentDate = formattedDate;
         }
 
-        message += `⏰ ${res.time} - ${res.ktoBron} (${res.kolich} чел.)\n` +
-                   `📞 ${res.phoneNumber || 'нет телефона'}\n\n`;
+        message += `\n👤 <b>${res.ktoBron}</b>\n` +
+                   `📞 <b>Телефон: ${res.phoneNumber}</b>\n` +
+                   `⏰ <i>${res.time}</i>\n` +
+                   `👥 Гостей: ${res.kolich}\n`;
       });
 
       await bot.sendMessage(chatId, message, {
@@ -51,7 +53,7 @@ module.exports = {
       });
     } catch (error) {
       console.error('Ошибка при получении броней:', error);
-      await bot.sendMessage(chatId, '⚠️ Ошибка при загрузке броней на неделю.');
+      await bot.sendMessage(chatId, '⚠️ Ошибка при загрузке броней.');
     }
   }
 };

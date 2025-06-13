@@ -136,7 +136,7 @@ else if (data.startsWith('date_')) {
           `📅 Дата: ${dateObj.getDate()} ${monthsRu[dateObj.getMonth()]} ${dateObj.getFullYear()}\n` +
           `⏰ Время: ${updatedContext.time}\n` +
           `👥 Количество гостей: ${guestsText}\n` +
-          `📍 Адрес: ул. Зоргее, д. 99, эт. 3`,
+          `📍 Адрес: г.Казань, тц.Олимп, эт.3`,
           {
             reply_markup: {
               inline_keyboard: [
